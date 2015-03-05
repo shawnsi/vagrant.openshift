@@ -1,0 +1,76 @@
+---
+- hosts: all
+
+  vars_files:
+    - secrets/rhn.yml
+
+  sudo: yes
+
+  tasks:
+    - name: Check RHN subscription
+      command: subscription-manager status
+      register: rhn_status
+      ignore_errors: True
+      failed_when: "'Unknown' in rhn_status.stdout"
+
+    - name: Register with RHN subscription
+      command: subscription-manager register --username {{ rhn_username }} --password '{{ rhn_password }}' --auto-attach
+      when: rhn_status | failed
+
+    - name: Remove all subscription-manager repos
+      command: subscription-manager repos --disable="*"
+      when: rhn_status | failed
+
+    - name: Add Openshift Enterprise beta repos
+      command: subscription-manager repos --enable={{ item }}
+      when: rhn_status | failed
+      with_items:
+        - rhel-7-server-beta-rpms
+        - rhel-7-server-extras-rpms
+        - rhel-server-7-ose-beta-rpms
+
+    # Manually updated kernel in vagrant box
+    # - name: Update Kernel
+    #   yum: name=kernel state=latest
+
+    - name: Stop conflicting services
+      service: name={{ item }} state=stopped enabled=no
+      with_items:
+        - firewalld
+        - NetworkManager
+
+    - name: Install deltarpm
+      yum: name=deltarpm state=present
+
+    - name: Install dependencies
+      yum: name={{ item }} state=present
+      with_items:
+        - wget
+        - vim-enhanced
+        - net-tools
+        - bind-utils
+        - tmux
+        - git
+        - docker
+        - openvswitch
+        - iptables-services
+        - bridge-utils
+
+    - name: Install openshift
+      command: yum -y install '*openshift*'
+
+    - name: Configure docker
+      lineinfile: dest=/etc/sysconfig/docker regexp=^OPTIONS line="OPTIONS=--insecure-registry 0.0.0.0/0 -H fd://"
+
+    - name: Configure iptables
+      copy: src=iptables dest=/etc/sysconfig/iptables
+
+    - name: Configure root .bash_profile
+      lineinfile: dest=/root/.bash_profile insertafter=EOF line="export KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig"
+
+    - name: Enable services
+      service: name={{ item }} enabled=yes
+      with_items:
+        - docker
+        - iptables
+        - openvswitch
