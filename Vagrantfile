@@ -35,7 +35,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.provision "ansible" do |ansible|
       ansible.groups = {
         "broker" => ["broker"],
-        "node"   => ["broker"],
+        "node"   => ["broker", "node1", "node2"],
       }
 
       ansible.playbook = "playbook.yml"
