@@ -82,7 +82,7 @@
       lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.201 line='192.168.100.201 node2.openshift'
 
     - name: Enable services
-      service: name={{ item }} enabled=yes
+      service: name={{ item }} state=started enabled=yes
       with_items:
         - docker
         - iptables
