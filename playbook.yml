@@ -62,6 +62,8 @@
 
     - name: Install openshift
       command: yum -y install '*openshift*'
+      register: install_openshift
+      changed_when: "'Nothing to do' not in install_openshift.stdout"
 
     - name: Configure docker
       lineinfile: dest=/etc/sysconfig/docker regexp=^OPTIONS line="OPTIONS=--insecure-registry 0.0.0.0/0 -H fd://"
@@ -90,6 +92,8 @@
 
     - name: Grab docker images
       command: docker pull {{ item }}
+      register: docker_images
+      changed_when: "'Downloaded newer image' in docker_images.stdout"
       with_items:
         - registry.access.redhat.com/openshift3_beta/ose-haproxy-router
         - registry.access.redhat.com/openshift3_beta/ose-deployer
