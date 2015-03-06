@@ -20,6 +20,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       broker.vm.network :forwarded_port, guest: 8444, host: 8444
     end
 
+    config.vm.synced_folder "certificates", "/var/lib/openshift/openshift.local.certificates"
+
     config.vm.define "node1" do |node1|
       node1.vm.hostname = "node1.openshift"
       node1.vm.network :private_network, ip: "192.168.100.200"
