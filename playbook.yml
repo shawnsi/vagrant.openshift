@@ -14,7 +14,11 @@
       failed_when: "'Unknown' in rhn_status.stdout"
 
     - name: Register with RHN subscription
-      command: subscription-manager register --username {{ rhn_username }} --password '{{ rhn_password }}' --auto-attach
+      command: subscription-manager register --username {{ rhn_username }} --password '{{ rhn_password }}' --auto-attach --force
+      when: rhn_status | failed
+
+    - name: Yum cleanup
+      command: yum clean all
       when: rhn_status | failed
 
     - name: Remove all subscription-manager repos
@@ -68,9 +72,58 @@
     - name: Configure root .bash_profile
       lineinfile: dest=/root/.bash_profile insertafter=EOF line="export KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig"
 
+    - name: Configure /etc/hosts
+      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.100 line='192.168.100.100 broker.openshift'
+
+    - name: Configure /etc/hosts
+      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.200 line='192.168.100.200 node1.openshift'
+
+    - name: Configure /etc/hosts
+      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.201 line='192.168.100.201 node2.openshift'
+
     - name: Enable services
       service: name={{ item }} enabled=yes
       with_items:
         - docker
         - iptables
         - openvswitch
+
+- hosts: broker
+
+  sudo: True
+
+  tasks:
+    - name: Configure openshift-master
+      lineinfile: dest=/etc/sysconfig/openshift-master regexp=^OPTIONS line='OPTIONS="--loglevel=4 --public-master=broker.openshift"'
+
+    - name: Configure openshift-sdn-master
+      lineinfile: dest=/etc/sysconfig/openshift-sdn-master regexp=^OPTIONS line='OPTIONS="-v=4"'
+
+    - name: Start master services
+      service: name={{ item }} state=started enabled=yes
+      with_items:
+        - openshift-master
+        - openshift-sdn-master
+
+- hosts: node
+
+  sudo: True
+
+  tasks:
+    - name: Configure openshift-node
+      lineinfile: dest=/etc/sysconfig/openshift-node regexp=^OPTIONS line='OPTIONS="--loglevel=4"'
+
+    - name: Configure openshift-sdn-node
+      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^MASTER_URL line='MASTER_URL="http://broker.openshift:4001"'
+
+    - name: Configure openshift-sdn-node
+      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^MINION_IP line='MINION_IP="http://{{ ansible_enp0s8.ipv4.address }}"'
+
+    - name: Configure openshift-sdn-node
+      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^OPTIONS line='OPTIONS="-v=4"'
+
+    - name: Configure openshift-sdn-node
+      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^DOCKER_OPTIONS line='DOCKER_OPTIONS="--insecure-registry=0.0.0.0/0 -b=lbr0 --mtu=1450 --selinux-enabled"'
+
+    - name: Start openshift-sdn-node
+      service: name=openshift-sdn-node state=started enabled=yes
