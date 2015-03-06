@@ -105,6 +105,12 @@
         - mysql
         - openshift/hello-openshift
 
+    - name: Add openshift-logs alias to vagrant user .bash_profile
+      lineinfile: dest=/home/vagrant/.bash_profile insertafter=EOF regexp='^alias openshift-logs' line='alias openshift-logs="sudo journalctl -f --no-pager -l -u openshift-master -u openshift-sdn-master -u openshift-node -u openshift-sdn-node"'
+
+    - name: Add openshift-status alias to vagrant user .bash_profile
+      lineinfile: dest=/home/vagrant/.bash_profile insertafter=EOF regexp='^alias openshift-status' line='alias openshift-status="sudo systemctl status openshift-master openshift-sdn-master openshift-node openshift-sdn-node"'
+
 - hosts: broker
 
   sudo: True
