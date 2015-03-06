@@ -88,6 +88,19 @@
         - iptables
         - openvswitch
 
+    - name: Grab docker images
+      command: docker pull {{ item }}
+      with_items:
+        - registry.access.redhat.com/openshift3_beta/ose-haproxy-router
+        - registry.access.redhat.com/openshift3_beta/ose-deployer
+        - registry.access.redhat.com/openshift3_beta/ose-sti-builder
+        - registry.access.redhat.com/openshift3_beta/ose-docker-builder
+        - registry.access.redhat.com/openshift3_beta/ose-pod
+        - registry.access.redhat.com/openshift3_beta/ose-docker-registry
+        - openshift/ruby-20-centos
+        - mysql
+        - openshift/hello-openshift
+
 - hosts: broker
 
   sudo: True
