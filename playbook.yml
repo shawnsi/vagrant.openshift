@@ -3,6 +3,7 @@
 
   vars_files:
     - secrets/rhn.yml
+    - vars/fqdn.yml
 
   sudo: yes
 
@@ -71,17 +72,17 @@
     - name: Configure iptables
       copy: src=iptables dest=/etc/sysconfig/iptables
 
-    - name: Configure root .bash_profile
-      lineinfile: dest=/root/.bash_profile insertafter=EOF line="export KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig"
+    - name: Configure vagrant .bash_profile
+      lineinfile: dest=/home/vagrant/.bash_profile insertafter=EOF line="export KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig"
 
     - name: Configure /etc/hosts
-      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.100 line='192.168.100.100 broker.openshift'
+      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.100 line='192.168.100.100 {{ fqdn.master }}'
 
     - name: Configure /etc/hosts
-      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.200 line='192.168.100.200 node1.openshift'
+      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.200 line='192.168.100.200 {{ fqdn.node1 }}'
 
     - name: Configure /etc/hosts
-      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.201 line='192.168.100.201 node2.openshift'
+      lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.201 line='192.168.100.201 {{ fqdn.node2 }}'
 
     - name: Enable services
       service: name={{ item }} state=started enabled=yes
@@ -111,33 +112,60 @@
     - name: Add openshift-status alias to vagrant user .bash_profile
       lineinfile: dest=/home/vagrant/.bash_profile insertafter=EOF regexp='^alias openshift-status' line='alias openshift-status="sudo systemctl status openshift-master openshift-sdn-master openshift-node openshift-sdn-node"'
 
-- hosts: broker
+- hosts: master
+
+  vars_files:
+    - vars/fqdn.yml
 
   sudo: True
 
   tasks:
+    - name: Install dnsmasq
+      yum: name=dnsmasq state=present
+
+    - name: Configure dnsmasq
+      copy: src=dnsmasq.conf dest=/etc/dnsmasq.conf
+
+    - name: Start dnsmasq
+      service: name=dnsmasq state=started enabled=yes
+
     - name: Configure openshift-master
-      lineinfile: dest=/etc/sysconfig/openshift-master regexp=^OPTIONS line='OPTIONS="--loglevel=4 --public-master=broker.openshift"'
+      lineinfile: dest=/etc/sysconfig/openshift-master regexp=^OPTIONS line='OPTIONS="--loglevel=4 --public-master={{ fqdn.master }}"'
+
+    - name: Start openshift-master
+      service: name=openshift-master state=started enabled=yes
+
+    - name: Configure master cluster server endpoint
+      shell: KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig openshift ex config set-cluster master --server=https://{{ fqdn.master }}:8443
 
     - name: Configure openshift-sdn-master
       lineinfile: dest=/etc/sysconfig/openshift-sdn-master regexp=^OPTIONS line='OPTIONS="-v=4"'
 
-    - name: Start master services
-      service: name={{ item }} state=started enabled=yes
-      with_items:
-        - openshift-master
-        - openshift-sdn-master
+    - name: Start openshift-sdn-master
+      service: name=openshift-sdn-master state=started enabled=yes
 
 - hosts: node
+
+  vars_files:
+    - vars/fqdn.yml
 
   sudo: True
 
   tasks:
+    - name: Configure /etc/resolv.conf
+      copy: src=resolv.conf dest=/etc/resolv.conf
+
+    - name: Install vagrant ssh private key
+      get_url: dest=/home/vagrant/.ssh/vagrant url=https://raw.githubusercontent.com/mitchellh/vagrant/master/keys/vagrant mode=700
+
+    - name: Copy ssl-certificates
+      copy: src=certificates/ dest=/var/lib/openshift/openshift.local.certificates
+
     - name: Configure openshift-node
       lineinfile: dest=/etc/sysconfig/openshift-node regexp=^OPTIONS line='OPTIONS="--loglevel=4"'
 
     - name: Configure openshift-sdn-node
-      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^MASTER_URL line='MASTER_URL="http://broker.openshift:4001"'
+      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^MASTER_URL line='MASTER_URL="http://{{ fqdn.master }}:4001"'
 
     - name: Configure openshift-sdn-node
       lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^MINION_IP line='MINION_IP="http://{{ ansible_enp0s8.ipv4.address }}"'

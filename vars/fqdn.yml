@@ -1,0 +1,4 @@
+fqdn:
+  master: ose3-master.example.com
+  node1: ose3-node1.example.com
+  node2: ose3-node2.example.com

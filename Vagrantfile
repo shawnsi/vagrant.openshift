@@ -11,31 +11,32 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       v.customize ["modifyvm", :id, "--ioapic", "on"]
     end
 
-    config.vm.define "broker" do |broker|
-      broker.vm.hostname = "broker.openshift"
+    config.vm.define "master" do |master|
+      master.vm.hostname = "ose3-master.example.com"
 
-      broker.vm.network :private_network, ip: "192.168.100.100"
+      master.vm.network :private_network, ip: "192.168.100.100"
 
-      broker.vm.network :forwarded_port, guest: 8443, host: 8443
-      broker.vm.network :forwarded_port, guest: 8444, host: 8444
+      master.vm.network :forwarded_port, guest: 8443, host: 8443
+      master.vm.network :forwarded_port, guest: 8444, host: 8444
+
+      master.vm.synced_folder "certificates", "/var/lib/openshift/openshift.local.certificates"
     end
 
-    config.vm.synced_folder "certificates", "/var/lib/openshift/openshift.local.certificates"
 
     config.vm.define "node1" do |node1|
-      node1.vm.hostname = "node1.openshift"
+      node1.vm.hostname = "ose3-node1.example.com"
       node1.vm.network :private_network, ip: "192.168.100.200"
     end
 
     config.vm.define "node2" do |node2|
-      node2.vm.hostname = "node2.openshift"
+      node2.vm.hostname = "ose3-node2.example.com"
       node2.vm.network :private_network, ip: "192.168.100.201"
     end
 
     config.vm.provision "ansible" do |ansible|
       ansible.groups = {
-        "broker" => ["broker"],
-        "node"   => ["broker", "node1", "node2"],
+        "master" => ["master"],
+        "node"   => ["master", "node1", "node2"],
       }
 
       ansible.playbook = "playbook.yml"
