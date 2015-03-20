@@ -30,13 +30,10 @@
       command: subscription-manager repos --enable={{ item }}
       when: rhn_status | failed
       with_items:
-        - rhel-7-server-beta-rpms
+        - rhel-7-server-rpms
         - rhel-7-server-extras-rpms
+        - rhel-7-server-optional-rpms
         - rhel-server-7-ose-beta-rpms
-
-    # Manually updated kernel in vagrant box
-    # - name: Update Kernel
-    #   yum: name=kernel state=latest
 
     - name: Stop conflicting services
       service: name={{ item }} state=stopped enabled=no
@@ -72,9 +69,6 @@
     - name: Configure iptables
       copy: src=iptables dest=/etc/sysconfig/iptables
 
-    - name: Configure vagrant .bash_profile
-      lineinfile: dest=/home/vagrant/.bash_profile insertafter=EOF line="export KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig"
-
     - name: Configure /etc/hosts
       lineinfile: dest=/etc/hosts regexp=^192\.168\.100\.100 line='192.168.100.100 {{ fqdn.master }}'
 
@@ -96,13 +90,13 @@
       register: docker_images
       changed_when: "'Downloaded newer image' in docker_images.stdout"
       with_items:
-        - registry.access.redhat.com/openshift3_beta/ose-haproxy-router
-        - registry.access.redhat.com/openshift3_beta/ose-deployer
-        - registry.access.redhat.com/openshift3_beta/ose-sti-builder
-        - registry.access.redhat.com/openshift3_beta/ose-docker-builder
-        - registry.access.redhat.com/openshift3_beta/ose-pod
-        - registry.access.redhat.com/openshift3_beta/ose-docker-registry
-        - openshift/ruby-20-centos
+        - registry.access.redhat.com/openshift3_beta/ose-haproxy-router:v0.4
+        - registry.access.redhat.com/openshift3_beta/ose-deployer:v0.4
+        - registry.access.redhat.com/openshift3_beta/ose-sti-builder:v0.4
+        - registry.access.redhat.com/openshift3_beta/ose-docker-builder:v0.4
+        - registry.access.redhat.com/openshift3_beta/ose-pod:v0.4
+        - registry.access.redhat.com/openshift3_beta/ose-docker-registry:v0.4
+        - openshift/ruby-20-centos7
         - mysql
         - openshift/hello-openshift
 
@@ -111,70 +105,3 @@
 
     - name: Add openshift-status alias to vagrant user .bash_profile
       lineinfile: dest=/home/vagrant/.bash_profile insertafter=EOF regexp='^alias openshift-status' line='alias openshift-status="sudo systemctl status openshift-master openshift-sdn-master openshift-node openshift-sdn-node"'
-
-- hosts: master
-
-  vars_files:
-    - vars/fqdn.yml
-
-  sudo: True
-
-  tasks:
-    - name: Install dnsmasq
-      yum: name=dnsmasq state=present
-
-    - name: Configure dnsmasq
-      copy: src=dnsmasq.conf dest=/etc/dnsmasq.conf
-
-    - name: Start dnsmasq
-      service: name=dnsmasq state=started enabled=yes
-
-    - name: Configure openshift-master
-      lineinfile: dest=/etc/sysconfig/openshift-master regexp=^OPTIONS line='OPTIONS="--loglevel=4 --public-master={{ fqdn.master }}"'
-
-    - name: Start openshift-master
-      service: name=openshift-master state=started enabled=yes
-
-    - name: Configure master cluster server endpoint
-      shell: KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig openshift ex config set-cluster master --server=https://{{ fqdn.master }}:8443
-
-    - name: Configure openshift-sdn-master
-      lineinfile: dest=/etc/sysconfig/openshift-sdn-master regexp=^OPTIONS line='OPTIONS="-v=4"'
-
-    - name: Start openshift-sdn-master
-      service: name=openshift-sdn-master state=started enabled=yes
-
-- hosts: node
-
-  vars_files:
-    - vars/fqdn.yml
-
-  sudo: True
-
-  tasks:
-    - name: Configure /etc/resolv.conf
-      copy: src=resolv.conf dest=/etc/resolv.conf
-
-    - name: Install vagrant ssh private key
-      get_url: dest=/home/vagrant/.ssh/vagrant url=https://raw.githubusercontent.com/mitchellh/vagrant/master/keys/vagrant mode=700
-
-    - name: Copy ssl-certificates
-      copy: src=certificates/ dest=/var/lib/openshift/openshift.local.certificates
-
-    - name: Configure openshift-node
-      lineinfile: dest=/etc/sysconfig/openshift-node regexp=^OPTIONS line='OPTIONS="--loglevel=4"'
-
-    - name: Configure openshift-sdn-node
-      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^MASTER_URL line='MASTER_URL="http://{{ fqdn.master }}:4001"'
-
-    - name: Configure openshift-sdn-node
-      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^MINION_IP line='MINION_IP="http://{{ ansible_enp0s8.ipv4.address }}"'
-
-    - name: Configure openshift-sdn-node
-      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^OPTIONS line='OPTIONS="-v=4"'
-
-    - name: Configure openshift-sdn-node
-      lineinfile: dest=/etc/sysconfig/openshift-sdn-node regexp=^DOCKER_OPTIONS line='DOCKER_OPTIONS="--insecure-registry=0.0.0.0/0 -b=lbr0 --mtu=1450 --selinux-enabled"'
-
-    - name: Start openshift-sdn-node
-      service: name=openshift-sdn-node state=started enabled=yes
