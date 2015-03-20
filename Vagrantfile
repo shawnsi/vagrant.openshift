@@ -1,7 +1,7 @@
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-    config.vm.box = "rhel-7.0-64"
+    config.vm.box = "rhel-7.1-64"
 
     config.vm.provider "virtualbox" do |v|
       v.memory = 4096
