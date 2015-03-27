@@ -1,0 +1,6 @@
+[submodule "training"]
+	path = training
+	url = https://github.com/openshift/training.git
+[submodule "openshift-ansible"]
+	path = openshift-ansible
+	url = https://github.com/detiber/openshift-ansible.git

@@ -105,3 +105,15 @@
 
     - name: Add openshift-status alias to vagrant user .bash_profile
       lineinfile: dest=/home/vagrant/.bash_profile insertafter=EOF regexp='^alias openshift-status' line='alias openshift-status="sudo systemctl status openshift-master openshift-sdn-master openshift-node openshift-sdn-node"'
+
+    - name: Create root ssh directory
+      file: path=/root/.ssh owner=root group=root mode=0700 state=directory
+
+    - name: Add vagrant ssh private key for root user
+      get_url: url=https://raw.githubusercontent.com/mitchellh/vagrant/master/keys/vagrant dest=/root/.ssh/id_rsa owner=root group=root mode=0600
+
+    - name: Add vagrant ssh private key for vagrant user
+      get_url: url=https://raw.githubusercontent.com/mitchellh/vagrant/master/keys/vagrant dest=/home/vagrant/.ssh/id_rsa owner=vagrant group=vagrant mode=0600
+
+    - name: Add vagrant ssh public key to root authorized keys
+      get_url: url=https://raw.githubusercontent.com/mitchellh/vagrant/master/keys/vagrant.pub dest=/root/.ssh/authorized_keys owner=root group=root mode=0600

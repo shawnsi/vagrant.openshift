@@ -34,11 +34,24 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
 
     config.vm.provision "ansible" do |ansible|
+      ansible.playbook = "playbook.yml"
+    end
+
+    config.vm.provision "ansible" do |ansible|
       ansible.groups = {
-        "master" => ["master"],
-        "node"   => ["master", "node1", "node2"],
+        "masters" => ["master"],
+        "nodes"   => ["master", "node1", "node2"],
       }
 
-      ansible.playbook = "playbook.yml"
+      ansible.extra_vars = {
+        ansible_ssh_user: "root",
+        openshift_debug_level: 4,
+        openshift_deployment_type: "enterprise",
+        openshift_master_ips: ["192.168.100.100"],
+        openshift_public_ip: "{{ ansible_enp0s8.ipv4.address }}",
+        openshift_hostname_workaround: false,
+        openshift_node_manage_service_externally: true
+      }
+      ansible.playbook = "openshift-ansible/playbooks/byo/config.yml"
     end
 end

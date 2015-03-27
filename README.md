@@ -1,12 +1,12 @@
 Openshift Enterprise 3
 ======================
 
-This vagrant environment will get you up to speed with https://github.com/openshift/training/blob/master/beta-1-setup.md.
+This vagrant environment will get you up to speed with https://github.com/openshift/training/blob/master/beta-2-setup.md.
 
 Setup
 -----
 
-Grab the `rhel-7.0-64` vagrant box and install locally.
+Grab the `rhel-7.1-64` vagrant box and install locally.
 
 ```bash
 $ mkdir certificates secrets
